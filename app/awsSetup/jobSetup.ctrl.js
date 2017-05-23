@@ -19,10 +19,11 @@ angular.module('awsSetup')
 .controller('JobSetupCtrl', ['$scope', 'awsService', '$uibModal', '$interval', 'localStorageService', function($scope, awsService, $uibModal, $interval, localStorageService) {
 	$scope.queues = [];
 	$scope.queueSize = 'No Queue Selected';
-	
-	$scope.workTemplate = 'blender -b *.blend -F PNG -o $OUTDIR/frame_###### -s $START -e $END -j $STEP -t 0 -a';
+
+	$scope.workTemplate = 'blender -b *.blend --python-expr "import os,bpy; bpy.data.scenes[0].render.use_stamp_note=True; bpy.data.scenes[0].render.stamp_note_text=\'InstanceType=\'+os.environ[\'NODE_INSTANCE_TYPE\']+\'||\';" -F PNG -o $OUTDIR/frame_###### -s $START -e $END -j $STEP -t 0 -a';
 	$scope.startFrame = 1;
 	$scope.endFrame = 240;
+	$scope.stepSize = 1;
 	
 	$scope.shuffle = Boolean(localStorageService.get('shuffleQ'));
 	
@@ -74,7 +75,7 @@ angular.module('awsSetup')
 	$scope.workList = function() {
 		var list = [];
 		
-		for (var i = parseInt($scope.startFrame, 10); i <= parseInt($scope.endFrame, 10); i++) {
+		for (var i = parseInt($scope.startFrame, 10); i <= parseInt($scope.endFrame, 10); i+= parseInt($scope.stepSize, 10)) {
 			var cmd = $scope.workTemplate.replace("$START", i).replace("$END", i).replace("$STEP", 1);
 			list.push(cmd);
 		}

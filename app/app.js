@@ -24,8 +24,6 @@ angular.module('brendaWeb', [
   'LocalStorageModule',
   'awsSetup',
   'duScroll',
-  'angulartics', 
-  'angulartics.google.analytics',
   'dashboard'
 ]).
 config(['$stateProvider', function($stateProvider) {
@@ -61,10 +59,4 @@ config(['$stateProvider', function($stateProvider) {
 }])
 .controller('NavCtrl', ['$scope', function($scope) {
 	$scope.navbarCollapsed = true;
-}])
-.run(['$rootScope', '$location', '$window', function($rootScope, $location, $window) {
-	$window.ga('create', 'UA-74793002-1', 'auto');
-	$rootScope.$on('$stateChangeSuccess', function (event) {
-	    $window.ga('send', 'pageview', $location.path());
-	});
 }]);

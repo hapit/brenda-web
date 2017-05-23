@@ -61,6 +61,11 @@
 				<label for="endFrame">End Frame</label>
 				<input type="number" name="endFrame" class="form-control" id="endFrame" ng-model="endFrame" required min="{{startFrame}}"/>
 			</div>
+
+			<div class="form-group">
+				<label for="stepSize">Step Size</label>
+				<input type="number" name="stepSize" class="form-control" id="stepSize" ng-model="stepSize" required />
+			</div>
 		</div>
 		<div ng-messages="jobForm.startFrame.$error" role="alert">
 			<div ng-message="required">Start frame is required</div>

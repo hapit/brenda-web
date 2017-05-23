@@ -16,8 +16,8 @@
 'use strict';
 
 angular.module('awsSetup')
-.factory('awsService', ['$log', '$rootScope', 'localStorageService', 'aws', '$q', '$interval', function($log, $rootScope, localStorageService, aws, $q, $interval) {	
-	var startDate = startDate = new Date(new Date() - 6*60*60*1000);
+.factory('awsService', ['$log', '$rootScope', 'localStorageService', 'aws', '$q', '$interval', '$http', function($log, $rootScope, localStorageService, aws, $q, $interval, $http) {
+	var startDate = new Date(new Date() - 6*60*60*1000);
 	
 	var deferredWrapper = function(obj, func, params) {
 		var deferred = $q.defer();
@@ -30,9 +30,9 @@ angular.module('awsSetup')
 		});
 		
 		return deferred.promise;
-	}
+	};
 	
-	var service = {
+	return {
 		setCredentials: function(keyId, secret) {
 			aws.config.update({accessKeyId: keyId, secretAccessKey: secret});
 			$log.log("Set keyId: " + keyId + " and secret: " + secret);
@@ -66,7 +66,7 @@ angular.module('awsSetup')
 			ec2.describeKeyPairs({}, function(err, data) {
 				if (err) {
 					deferred.reject(String(err));
-					$log.log("Error with credentials: " + err);
+					$log.error("Error with credentials: " + err);
 					$rootScope.$broadcast('aws-login-error', String(err));
 				} else {
 					deferred.resolve();
@@ -182,7 +182,7 @@ angular.module('awsSetup')
 				}
 			});
 		},
-		getLaunchSpecification: function(ami, keyPair, securityGroup, userData, instanceType, snapshots) {
+		getLaunchSpecification: function(ami, keyPair, securityGroupId, userData, instanceType, snapshots, subnetId) {
 			var devs = [
 	            'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p'
             ];
@@ -190,9 +190,10 @@ angular.module('awsSetup')
 			var spec = {
 				ImageId: ami,
 				KeyName: keyPair,
-				SecurityGroups: [securityGroup],
+				SecurityGroupIds: [securityGroupId],
 				UserData: btoa(userData),
-				InstanceType: instanceType
+				InstanceType: instanceType,
+				SubnetId: subnetId
 			};
 			
 			if (snapshots) {
@@ -231,9 +232,9 @@ angular.module('awsSetup')
 				}
 			});
 		},
-		requestSpot: function(ami, keyPair, securityGroup, userData, instanceType, snapshots, spotPrice, count, type, queueName, s3Destination, statusCallback) {
-			var spec = this.getLaunchSpecification(ami, keyPair, securityGroup, userData, instanceType, snapshots);
-			
+		requestSpot: function(ami, keyPair, securityGroup, userData, instanceType, snapshots, spotPrice, count, type, queueName, s3Destination, statusCallback, subnetId) {
+			var spec = this.getLaunchSpecification(ami, keyPair, securityGroup, userData, instanceType, snapshots, subnetId);
+
 			var params = {
 				// DryRun: true,
 				SpotPrice: String(spotPrice),
@@ -257,6 +258,7 @@ angular.module('awsSetup')
 					self.setTags(spotRequests, [{Key: 'brenda-queue', Value: queueName}, {Key: 'brenda-dest', Value: s3Destination}], function(err, data) {
 						if (err) {
 							statusCallback('warning', 'Spot instances requested but could not set tags (may affect dashboard)');
+							console.error('Error while requesting spot instances: ', err, err.stack);
 						} else {
 							statusCallback('success', 'Spot instances requested');
 						}
@@ -265,8 +267,8 @@ angular.module('awsSetup')
 				}
 			});
 		},
-		requestOndemand: function(ami, keyPair, securityGroup, userData, instanceType, snapshots, count, queueName, s3Destination, statusCallback) {
-			var spec = this.getLaunchSpecification(ami, keyPair, securityGroup, userData, instanceType, snapshots);
+		requestOndemand: function(ami, keyPair, securityGroup, userData, instanceType, snapshots, count, queueName, s3Destination, statusCallback, subnetId) {
+			var spec = this.getLaunchSpecification(ami, keyPair, securityGroup, userData, instanceType, snapshots, subnetId);
 			spec.MinCount = count;
 			spec.MaxCount = count;
 			spec.InstanceInitiatedShutdownBehavior = 'terminate';
@@ -414,11 +416,11 @@ angular.module('awsSetup')
 			
 			return deferred.promise;
 		},
-		getSpotPrices: function(nextToken) {
+		getSpotPrices: function(instances, nextToken) {
 			var ec2 = new aws.EC2();
-			
 			var params = {
-					Filters: [{Name: 'product-description', Values: ['Linux/UNIX']}],
+					Filters: [{Name: 'product-description', Values: ['Linux/UNIX (Amazon VPC)']}],
+					InstanceTypes: instances.map(function(i) {return i.name;}),
 					StartTime: startDate
 			};
 			
@@ -430,7 +432,7 @@ angular.module('awsSetup')
 				if (err) {
 					$rootScope.$broadcast('aws-spotprice-error', err);
 				} else {
-					$rootScope.$broadcast('aws-spotprice-update', data);
+					$rootScope.$broadcast('aws-spotprice-update', data, instances);
 				}
 			});
 		},
@@ -441,8 +443,17 @@ angular.module('awsSetup')
 		terminateInstance: function(instanceId) {
 			var ec2 = new aws.EC2();
 			return deferredWrapper(ec2, ec2.terminateInstances, {InstanceIds: [instanceId]});
-		}
+		},
+        getSubnets: function(vpcId, callback) {
+            var ec2 = new aws.EC2();
+            ec2.describeSubnets({}, function(err, data) {
+                if (err) {
+                    $log.log(err);
+                    $rootScope.$broadcast('aws-ec2-error', String(err));
+                } else {
+                    return callback(data);
+                }
+            });
+        }
 	};
-	
-	return service;
 }]);
