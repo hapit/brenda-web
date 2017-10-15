@@ -11,6 +11,12 @@
 			"blenderVersion": "2.78c",
 			"nginxPath": "/var/www/html/",
 			"info": "packer image, Ubuntu 16.04, with animation-nodes"
+      },
+	   {
+			"ami": "ami-a34787d9",
+			"blenderVersion": "2.79",
+			"nginxPath": "/var/www/html/",
+			"info": "packer image, Ubuntu 16.04, with animation-nodes"
 		}
 	],
 	"defaultNginxPath": "/var/www/html/"
